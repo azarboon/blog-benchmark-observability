@@ -1,0 +1,65 @@
+service: benchmarking
+
+frameworkVersion: ">=1.1.0"
+
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: dev
+  tracing: true
+  profile: lsh
+  region: eu-central-1
+  environment:
+    BUCKET: ${self:custom.bucket}
+    DB_TABLE: ${self:custom.table}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource: "arn:aws:s3:::${self:custom.bucket}/*"
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+      Resource: "arn:aws:dynamodb:eu-central-1:358293414627:table/xray-test"
+    - Effect: "Allow" # xray permissions (required)
+      Action:
+        - "xray:PutTraceSegments"
+        - "xray:PutTelemetryRecords"
+      Resource:
+        - "*"
+
+package:
+  individually: true
+
+custom:
+  bucket: my-bucket
+  table: xray-test
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
+
+
+plugins:
+  - serverless-plugin-tracing
+  - serverless-offline
+
+functions:
+  save:
+    skipLogGroupCreation: true
+    handler: handler.save
+    events:
+      - http: POST save
+  badFormat:
+    timeout: 30
+    handler: handler.badFormat
+    events:
+      - http: POST badformat
+  customErrorSegment:
+    handler: handler.customErrorSegment
+    events:
+      - http: POST customerrorsegment
+  dbError:
+    handler: handler.dbError
+    events:
+      - http: POST dberror
